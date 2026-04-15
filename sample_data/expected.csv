@@ -1,0 +1,11 @@
+invoice_id,vendor_name,invoice_date,amount,currency,quantity,unit_price,status
+INV-001,Acme Corp,2024-01-15,1500.00,USD,10,150.00,Approved
+INV-002,Global Trading Co,2024-02-20,3200.50,EUR,25,128.02,Pending
+INV-003,Shanghai Electronics,2024-03-10,8750.00,CNY,100,87.50,Approved
+INV-004,NZ Fresh Produce,2024-04-05,420.00,NZD,30,14.00,Approved
+INV-005,Tech Solutions Ltd,2024-05-18,15000.00,USD,5,3000.00,Rejected
+INV-006,Munich Auto Parts,2024-06-22,6300.00,EUR,42,150.00,Approved
+INV-007,Tokyo Instruments,2024-07-30,2100.00,JPY,7,300.00,Pending
+INV-008,Sydney Logistics,2024-08-12,980.50,AUD,15,65.37,Approved
+INV-009,Delhi Textiles,2024-09-01,4500.00,INR,200,22.50,Approved
+INV-010,Vancouver Wood Co,2024-10-15,7200.00,CAD,60,120.00,Pending
