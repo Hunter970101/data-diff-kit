@@ -1,5 +1,7 @@
 # Data Diff Kit
 
+**[▶ Live Demo](https://data-diff-kit-hjt4f4jzi2b6el7fn2zwk6.streamlit.app/)** — try it in your browser, no install needed.
+
 A Python toolkit for comparing expected vs. actual data outputs, with intelligent differentiation between **real value errors** and **format-only differences**.
 
 ## The Problem

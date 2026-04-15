@@ -103,10 +103,10 @@ if expected_file and actual_file:
         prev_left, prev_right = st.columns(2)
         with prev_left:
             st.caption("Expected")
-            st.dataframe(df_expected, use_container_width=True, height=200)
+            st.dataframe(df_expected, width="stretch", height=200)
         with prev_right:
             st.caption("Actual")
-            st.dataframe(df_actual, use_container_width=True, height=200)
+            st.dataframe(df_actual, width="stretch", height=200)
 
     # Compare
     comparator = DataComparator(
@@ -254,13 +254,133 @@ if expected_file and actual_file:
                 return "background-color: rgba(255,209,102,0.3); color: #ffd166; font-weight: bold"
             return ""
 
-        styled = filtered.style.applymap(highlight_type, subset=["diff_type"])
-        st.dataframe(styled, use_container_width=True, height=400)
+        styled = filtered.style.map(highlight_type, subset=["diff_type"])
+        st.dataframe(styled, width="stretch", height=400)
 
         st.caption(f"Showing {len(filtered)} of {len(diffs_df)} differences")
     else:
         st.success("No differences found! The datasets match perfectly. 🎉")
 
 else:
-    # No files uploaded yet — show instructions
-    st.info("👆 Upload both files to start comparing. You can use the sample files in the `sample_data/` folder to try it out.")
+    # No files uploaded yet — show demo option
+    st.info("👆 Upload both files to start comparing, or click below to try with built-in sample data.")
+
+    if st.button("🚀 Try with sample data", type="primary", width="stretch"):
+        st.session_state["use_sample"] = True
+        st.rerun()
+
+    # Load sample data if button was clicked
+    if st.session_state.get("use_sample"):
+        import os
+        sample_dir = os.path.join(os.path.dirname(__file__), "sample_data")
+        df_expected = pd.read_csv(os.path.join(sample_dir, "expected.csv"), dtype=str, keep_default_na=False)
+        df_actual = pd.read_csv(os.path.join(sample_dir, "actual.csv"), dtype=str, keep_default_na=False)
+
+        st.subheader("📦 Using built-in sample data")
+        st.caption("This is a demo comparing invoice data with mixed format differences and real errors.")
+
+        with st.expander("👀 Preview sample data", expanded=False):
+            prev_left, prev_right = st.columns(2)
+            with prev_left:
+                st.caption("Expected")
+                st.dataframe(df_expected, width="stretch", height=200)
+            with prev_right:
+                st.caption("Actual")
+                st.dataframe(df_actual, width="stretch", height=200)
+
+        comparator = DataComparator(
+            numeric_tolerance=numeric_tolerance,
+            case_sensitive=case_sensitive,
+            normalize_dates=normalize_dates,
+            normalize_currency=normalize_currency,
+        )
+        result = comparator.compare(df_expected, df_actual)
+
+        st.divider()
+
+        st.subheader("📊 Summary")
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("Total Cells", f"{result.total_cells}")
+        m2.metric("Exact Matches", f"{result.match_count}")
+        m3.metric("Format Diffs", f"{result.format_diff_count}")
+        m4.metric("Value Mismatches", f"{result.value_mismatch_count}")
+        m5.metric("Lenient Accuracy", f"{result.accuracy:.1%}")
+
+        st.divider()
+        st.subheader("📈 Visualizations")
+
+        chart_left, chart_right = st.columns(2)
+
+        with chart_left:
+            labels, sizes, colors = [], [], []
+            for label, size, color in [
+                ("Exact Match", result.match_count, "#06d6a0"),
+                ("Format Diff", result.format_diff_count, "#ffd166"),
+                ("Value Mismatch", result.value_mismatch_count, "#ef476f"),
+            ]:
+                if size > 0:
+                    labels.append(label)
+                    sizes.append(size)
+                    colors.append(color)
+            if sizes:
+                fig_pie, ax_pie = plt.subplots(figsize=(5, 4))
+                fig_pie.patch.set_facecolor("none")
+                ax_pie.set_facecolor("none")
+                wedges, texts, autotexts = ax_pie.pie(
+                    sizes, labels=labels, colors=colors, autopct="%1.1f%%",
+                    textprops={"color": "#e0e0e0", "fontsize": 10},
+                    wedgeprops={"edgecolor": "#0e1117", "linewidth": 2},
+                )
+                for t in autotexts:
+                    t.set_fontweight("bold")
+                ax_pie.set_title("Difference Breakdown", color="#e0e0e0", fontsize=13, fontweight="bold")
+                st.pyplot(fig_pie)
+                plt.close(fig_pie)
+
+        with chart_right:
+            cols = list(result.field_stats.keys())
+            accuracies = [result.field_stats[c].lenient_accuracy * 100 for c in cols]
+            fig_bar, ax_bar = plt.subplots(figsize=(max(5, len(cols) * 0.7), 4))
+            fig_bar.patch.set_facecolor("none")
+            ax_bar.set_facecolor("none")
+            bar_colors = ["#06d6a0" if a >= 95 else "#ffd166" if a >= 80 else "#ef476f" for a in accuracies]
+            ax_bar.bar(cols, accuracies, color=bar_colors, width=0.6)
+            ax_bar.set_ylim(0, 105)
+            ax_bar.set_ylabel("Accuracy %", color="#e0e0e0")
+            ax_bar.set_title("Per-Field Accuracy", color="#e0e0e0", fontsize=13, fontweight="bold")
+            ax_bar.tick_params(colors="#e0e0e0", labelsize=9)
+            ax_bar.spines["top"].set_visible(False)
+            ax_bar.spines["right"].set_visible(False)
+            ax_bar.spines["left"].set_color("#333")
+            ax_bar.spines["bottom"].set_color("#333")
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            st.pyplot(fig_bar)
+            plt.close(fig_bar)
+
+        diffs_df = result.diffs_to_dataframe()
+        if len(diffs_df) > 0:
+            st.divider()
+            st.subheader("🔎 Difference Details")
+            filter_col1, filter_col2 = st.columns(2)
+            with filter_col1:
+                type_filter = st.selectbox("Filter by type", ["All", "value_mismatch", "format_diff"], key="sample_type")
+            with filter_col2:
+                col_filter = st.selectbox("Filter by column", ["All"] + list(diffs_df["column"].unique()), key="sample_col")
+            filtered = diffs_df.copy()
+            if type_filter != "All":
+                filtered = filtered[filtered["diff_type"] == type_filter]
+            if col_filter != "All":
+                filtered = filtered[filtered["column"] == col_filter]
+
+            def highlight_type(val):
+                if val == "value_mismatch":
+                    return "background-color: rgba(239,71,111,0.3); color: #ef476f; font-weight: bold"
+                elif val == "format_diff":
+                    return "background-color: rgba(255,209,102,0.3); color: #ffd166; font-weight: bold"
+                return ""
+
+            styled = filtered.style.map(highlight_type, subset=["diff_type"])
+            st.dataframe(styled, width="stretch", height=400)
+            st.caption(f"Showing {len(filtered)} of {len(diffs_df)} differences")
+
